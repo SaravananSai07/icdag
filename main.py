@@ -1,22 +1,24 @@
-from dag import dag as portfolio_dag, execute_dag
+from functions.portfolio import portfolio
+from functions.securities import security
+from functions.securities import compare
+from core.dag_manager import dag_manager
+from dags.portfolio_dag import portfolio_dag
+from dags.securities_dag import securities_dag
 
-ic_output = {"module": "portfolio", "intent": "view_portfolio", "user_id": 123}
+ic_output = [{"module": "portfolio", "intent": "view_portfolio", "user_id": 123}, {"module": "securities", "intent": "compare_securities", "user_id": 123}]
+intents = []
+args = {}
+for intent in ic_output:
+    intents.append(intent["intent"])
+    for key, value in intent.items():
+        if key not in ["intent", "module"]:
+            args[key] = value
 
-dag_registry = {
-    "portfolio": portfolio_dag
-}
+portfolio.register()
+security.register()
+compare.register()
 
-def process_intent(input):
-    module = input["module"]
-    if module not in dag_registry:
-        print("Module not found in registry: ", module)
-        return
-    intent = input["intent"]
-    print("Processing intent: ", intent)
-    dag = dag_registry[module]
-    if dag is None:
-        print("Dag not found for intent: ", intent)
-        return
-    execute_dag(dag, input)
+dag_manager.register_module_dag("portfolio", portfolio_dag)
+dag_manager.register_module_dag("securities", securities_dag)
 
-process_intent(ic_output)
+dag_manager.execute_dynamic_dag(intents, **args)
